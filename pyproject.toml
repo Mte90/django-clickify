@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "django-clickify"
+version = "0.1.0"
+description = "Track real file download events with IP filtering, rate limiting, and geo lookup"
+authors = ["Romjan Ali <romjanvr5@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [
+  { include = "clickify" }
+]
+homepage = "https://github.com/romjanxr/django-clickify"
+repository = "https://github.com/romjanxr/django-clickify"
+keywords = ["django", "click tracker", "rate limit", "ip filter", "geoip"]
+classifiers = [
+    "Framework :: Django",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License"
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10"
+Django = ">=4.2"
+django-ipware = ">=4.0"
+django-ratelimit = "^4.1.0"
+geoip2 = "^5.1.0"
+
+[tool.poetry.extras]
+drf = ["djangorestframework"]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+pytest-django = "^4.5"
+black = "^24.0"
+isort = "^5.10"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
