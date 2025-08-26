@@ -1,37 +1,45 @@
 [tool.poetry]
 name = "django-clickify"
 version = "0.1.0"
-description = "Track real file download events with IP filtering, rate limiting, and geo lookup"
+description = "A Django app to track file downloads with rate limiting, IP filtering, and geolocation."
 authors = ["Romjan Ali <romjanvr5@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-packages = [
-  { include = "clickify" }
-]
 homepage = "https://github.com/romjanxr/django-clickify"
 repository = "https://github.com/romjanxr/django-clickify"
-keywords = ["django", "click tracker", "rate limit", "ip filter", "geoip"]
+keywords = ["django", "download", "tracker", "ratelimit", "ipfilter", "geolocation"]
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
     "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License"
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+packages = [
+  { include = "clickify" }
 ]
 
 [tool.poetry.dependencies]
 python = ">=3.10"
-Django = ">=4.2"
-django-ipware = ">=4.0"
-django-ratelimit = "^4.1.0"
-geoip2 = "^5.1.0"
-
-[tool.poetry.extras]
-drf = ["djangorestframework"]
+django = ">=4.2"
+django-ipware = ">=4.0" # Using a more flexible specifier
+django-ratelimit = ">=4.1" # Using a more flexible specifier
+requests = ">=2.20" # Added for the new geolocation API
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0"
-pytest-django = "^4.5"
-black = "^24.0"
-isort = "^5.10"
+pytest = ">=8.0"
+pytest-django = ">=4.5"
+black = {version = "^24.0", extras = ["d"]}
+isort = ">=5.10"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -39,3 +47,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.settings"
+python_files = "tests.py test_*.py *_tests.py"
