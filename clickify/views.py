@@ -6,15 +6,16 @@ from .models import DownloadClick
 from django_ratelimit.decorators import ratelimit
 import os
 
+rate = getattr(settings, 'CLICKIFY_RATE_LIMIT', '5/m')
 
-@ratelimit(key='ip', rate='5/m', block=True)
+
+@ratelimit(key='ip', rate=rate, block=True)
 def track_download(request, file_path):
     ip, is_routable = get_client_ip(request)
     user_agent = request.META.get("HTTP_USER_AGENT", "")
 
     # GeoIP
     country, city = get_geolocation(ip)
-   
 
     # Saveto DB
     DownloadClick.objects.create(
