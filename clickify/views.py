@@ -27,9 +27,21 @@ def track_download(request, file_path):
     )
 
     # Serve the file
-    absolute_path = os.path.join(settings.MEDIA_ROOT, file_path)
+    # Securely build the absolute path to prevent path traversal vulnerability
+    absolute_path = os.path.abspath(
+        os.path.join(settings.MEDIA_ROOT, file_path))
+    media_root_abs = os.path.abspath(settings.MEDIA_ROOT)
+
+    # Check for path traversal
+    if not absolute_path.startswith(media_root_abs):
+        raise Http404("File not found")
 
     if not os.path.exists(absolute_path):
         raise Http404("File not found")
 
-    return FileResponse(open(absolute_path, 'rb'), as_attachment=True)
+    try:
+        fh = open(absolute_path, 'rb')
+        response = FileResponse(fh, as_attachment=True)
+        return response
+    except FileNotFoundError:
+        raise Http404("File not found")
