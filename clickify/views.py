@@ -1,35 +1,23 @@
-from django.http import HttpResponseRedirect, Http404
+from django.http import HttpResponseRedirect, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from django.conf import settings
+from django_ratelimit.exceptions import Ratelimited
 from django_ratelimit.decorators import ratelimit
 from ipware import get_client_ip
 from .models import DownloadTarget, DownloadClick
-from .utils import get_geolocation
+from .utils import create_download_click
 
 
+@ratelimit(key='ip', rate=lambda r, g: getattr(settings, 'CLICKIFY_RATE_LIMIT', '5/m'), block=True)
 def track_download(request, slug):
     """track download
-
     Track download click for a DownloadTarget and then redirects its actual file URL
     """
 
-    target = get_object_or_404(DownloadTarget, slug=slug)
-    rate = getattr(settings, 'CLICKIFY_RATE_LIMIT', '5/m')
-
-    @ratelimit(key='ip', rate=rate, block=True)
-    def inner(request):
-        ip, is_routable = get_client_ip(request)
-        user_agent = request.META.get("HTTP_USER_AGENT", "")
-
-        country, city = get_geolocation(ip)
-
-        DownloadClick.objects.create(
-            target=target,
-            ip_address=ip,
-            user_agent=user_agent,
-            country=country,
-            city=city
-        )
-
+    try:
+        target = get_object_or_404(DownloadTarget, slug=slug)
+        # Call the helper function to do the actual tracking
+        create_download_click(target=target, request=request)
         return HttpResponseRedirect(target.target_url)
-    return inner(request)
+    except Ratelimited:
+        return HttpResponseForbidden("Rate limit exceeded. Please try again later.")
