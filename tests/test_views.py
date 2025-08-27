@@ -5,7 +5,8 @@ from unittest.mock import patch
 from clickify.models import DownloadTarget
 
 
-@patch('clickify.views.get_geolocation', return_value=('Test Country', 'Test City'))
+@patch('clickify.utils.get_client_ip', return_value=('123.123.123.123', True))
+@patch('clickify.utils.get_geolocation', return_value=('Test Country', 'Test City'))
 class TrackDownloadViewTest(TestCase):
     def setUp(self):
         cache.clear()
@@ -15,7 +16,7 @@ class TrackDownloadViewTest(TestCase):
             target_url="https://example.com/test-file.zip"
         )
 
-    def test_download_creates_click_and_redirects(self, mock_get_geolocation):
+    def test_download_creates_click_and_redirects(self, mock_get_geolocation, mock_get_client_ip):
         self.assertEqual(self.target.clicks.count(), 0)
 
         url = reverse('clickify:track_download',
@@ -37,12 +38,12 @@ class TrackDownloadViewTest(TestCase):
         self.assertIsNotNone(click)
         self.assertEqual(click.target, self.target)
         # default ip for the test client
-        self.assertEqual(click.ip_address, '127.0.0.1')
+        self.assertEqual(click.ip_address, '123.123.123.123')
         self.assertEqual(click.user_agent, user_agent)
         self.assertEqual(click.country, 'Test Country')  # check for mock data
         self.assertEqual(click.city, 'Test City')  # check for mock data
 
-    def test_download_nonexistent_file(self, mock_get_geolocation):
+    def test_download_nonexistent_file(self, mock_get_geolocation, mock_get_client_ip):
         url = reverse('clickify:track_download', kwargs={
                       'slug': 'nonexistent-slug'})
 
@@ -50,7 +51,7 @@ class TrackDownloadViewTest(TestCase):
         self.assertEqual(response.status_code, 404)
 
     @override_settings(CLICKIFY_RATE_LIMIT='1/m',)
-    def test_rate_limit_exceeded(self, mock_get_geolocation):
+    def test_rate_limit_exceeded(self, mock_get_geolocation, mock_get_client_ip):
         url = reverse('clickify:track_download',
                       kwargs={'slug': self.target.slug})
 

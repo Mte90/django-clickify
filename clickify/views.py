@@ -3,8 +3,7 @@ from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django_ratelimit.exceptions import Ratelimited
 from django_ratelimit.decorators import ratelimit
-from ipware import get_client_ip
-from .models import DownloadTarget, DownloadClick
+from .models import DownloadTarget
 from .utils import create_download_click
 
 

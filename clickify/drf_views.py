@@ -3,16 +3,24 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django_ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
 from django.conf import settings
 from .models import DownloadTarget
 from .views import track_download
 from .utils import create_download_click
 
 
+@method_decorator(
+    ratelimit(
+        key='ip',
+        rate=lambda r, g: getattr(settings, 'CLICKIFY_RATE_LIMIT', '5/m'),
+        block=True
+    ),
+    name='post'
+)
 class TrackDownloadAPIView(APIView):
     """ An API View to track a download for a DownloadTarget """
 
-    @ratelimit(key='ip', rate=lambda r, g: getattr(settings, 'CLICKIFY_RATE_LIMIT', '5/m'), block=True)
     def post(self, request, slug, format=None):
         """ Tracks a download for the given slug """
         target = get_object_or_404(DownloadTarget, slug=slug)
