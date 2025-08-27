@@ -9,6 +9,7 @@ A simple Django app to track file downloads with rate limiting, IP filtering, an
 *   **Rate Limiting**: Prevents abuse by limiting the number of downloads per IP address in a given timeframe.
 *   **IP Filtering**: Easily configure allowlists and blocklists for IP addresses.
 *   **Secure**: Protects against path traversal attacks.
+*   **Django Admin Integration**: View, search, and filter download logs directly in the Django admin.
 
 ## Installation
 
@@ -30,7 +31,7 @@ A simple Django app to track file downloads with rate limiting, IP filtering, an
 3.  Run migrations to create the `DownloadClick` model in your database:
 
     ```bash
-    python manage.py migrate clickify
+    python manage.py migrate
     ```
 
 ## Configuration
@@ -81,19 +82,18 @@ You can customize the behavior of `django-clickify` by adding the following sett
 
 ## Usage
 
-To track downloads for a file, use the `track_download` view in your project's `urls.py`.
+To track downloads, include the `clickify` URL patterns in your project's `urls.py`.
 
-You need to configure your project to serve media files. Make sure you have `MEDIA_URL` and `MEDIA_ROOT` set in your `settings.py`.
+You will also need to have configured your project to serve media files (i.e., have `MEDIA_URL` and `MEDIA_ROOT` set).
 
 ```python
 # your_project/urls.py
 
-from django.urls import path
-from clickify.views import track_download
+from django.urls import path, include
 
 urlpatterns = [
     # ...
-    path('downloads/<path:file_path>', track_download, name='track_download'),
+    path('downloads/', include('clickify.urls')),
 ]
 ```
 
