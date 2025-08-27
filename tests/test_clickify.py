@@ -1,3 +1,4 @@
+from django.template import Template, Context
 import os
 from django.core.cache import cache
 from django.test import TestCase, RequestFactory, override_settings
@@ -58,7 +59,8 @@ class TrackDownloadViewTest(TestCase):
     def test_download_creates_click_and_redirects(self, mock_get_geolocation):
         self.assertEqual(self.target.clicks.count(), 0)
 
-        url = reverse('track_download', kwargs={'slug': self.target.slug})
+        url = reverse('clickify:track_download',
+                      kwargs={'slug': self.target.slug})
         response = self.client.get(url)
 
         # Check for successfull redirects
@@ -72,7 +74,7 @@ class TrackDownloadViewTest(TestCase):
         self.assertEqual(click.country, 'Test Country')
 
     def test_download_nonexistent_file(self, mock_get_geolocation):
-        url = reverse('track_download', kwargs={
+        url = reverse('clickify:track_download', kwargs={
                       'slug': 'nonexistent-slug'})
 
         response = self.client.get(url)
@@ -80,7 +82,8 @@ class TrackDownloadViewTest(TestCase):
 
     @override_settings(CLICKIFY_RATE_LIMIT='1/m',)
     def test_rate_limit_exceeded(self, mock_get_geolocation):
-        url = reverse('track_download', kwargs={'slug': self.target.slug})
+        url = reverse('clickify:track_download',
+                      kwargs={'slug': self.target.slug})
 
         # First request should succeed
         response = self.client.get(url)
@@ -89,3 +92,32 @@ class TrackDownloadViewTest(TestCase):
         # Second request should blocked with 403 status code
         response = self.client.get(url)
         self.assertEqual(response.status_code, 403)
+
+
+class ClickifyTemplateTagTest(TestCase):
+    def setUp(self):
+        self.target = DownloadTarget.objects.create(
+            name="Test File",
+            slug="test-file",
+            target_url="https://example.com/test-file.zip"
+        )
+
+    def test_track_url_tag(self):
+        # The template content we want to render
+        template_to_render = """
+            {% load clickify_tags %}
+            {% track_url 'test-file' %}
+        """
+
+        # Create a template object
+        t = Template(template_to_render)
+
+        # Render the template
+        rendered = t.render(Context({}))
+
+        # The expected URL
+        expected_url = reverse('clickify:track_download',
+                               kwargs={'slug': 'test-file'})
+
+        # Check that the rendered output is the correct url
+        self.assertEqual(rendered.strip(), expected_url)

@@ -22,6 +22,17 @@ INSTALLED_APPS = [
     'clickify',
 ]
 
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'APP_DIRS': True,
+    }
+]
+
+MIDDLEWARE = [
+    'clickify.middleware.IPFilterMiddleware'
+]
+
 MEDIA_ROOT = os.path.join(tempfile.gettempdir(), 'clickify_tests')
 
 ROOT_URLCONF = 'tests.urls'
