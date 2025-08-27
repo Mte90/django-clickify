@@ -48,3 +48,6 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.settings"
 python_files = "tests.py test_*.py *_tests.py"
+filterwarnings = [
+  "ignore::DeprecationWarning:django.core.cache.backends.filebased",
+]
