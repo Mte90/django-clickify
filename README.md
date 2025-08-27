@@ -9,7 +9,8 @@ A simple Django app to track file downloads with rate limiting, IP filtering, an
 *   **Rate Limiting**: Prevents abuse by limiting the number of downloads per IP address in a given timeframe.
 *   **IP Filtering**: Easily configure allowlists and blocklists for IP addresses.
 *   **Secure**: Protects against path traversal attacks.
-*   **Django Admin Integration**: View, search, and filter download logs directly in the Django admin.
+*   **Django Admin Integration**: Create and manage your download targets directly in the Django admin.
+*   **Template Tag**: A simple template tag provides an easy and robust way to generate tracking URLs.
 
 ## Installation
 
@@ -28,7 +29,7 @@ A simple Django app to track file downloads with rate limiting, IP filtering, an
     ]
     ```
 
-3.  Run migrations to create the `DownloadClick` model in your database:
+3.  Run migrations to create the necessary database models:
 
     ```bash
     python manage.py migrate
@@ -38,7 +39,7 @@ A simple Django app to track file downloads with rate limiting, IP filtering, an
 
 ### 1. Middleware (for IP Filtering)
 
-To enable IP filtering, add the `IPFilterMiddleware` to your `MIDDLEWARE` setting in `settings.py`.
+To enable the IP allowlist and blocklist feature, add the `IPFilterMiddleware` to your `settings.py`.
 
 ```python
 MIDDLEWARE = [
@@ -52,58 +53,55 @@ MIDDLEWARE = [
 
 You can customize the behavior of `django-clickify` by adding the following settings to your `settings.py`:
 
-*   `CLICKIFY_GEOLOCATION`: A boolean to enable or disable geolocation via the `ip-api.com` service. Defaults to `True`.
+*   `CLICKIFY_GEOLOCATION`: A boolean to enable or disable geolocation. Defaults to `True`.
+*   `CLICKIFY_RATE_LIMIT`: The rate limit for downloads. Defaults to `'5/m'`.
+*   `CLICKIFY_IP_ALLOWLIST`: A list of IP addresses that are always allowed. Defaults to `[]`.
+*   `CLICKIFY_IP_BLOCKLIST`: A list of IP addresses that are always blocked. Defaults to `[]`.
 
-    ```python
-    # settings.py
-    CLICKIFY_GEOLOCATION = False # Disable geolocation lookups
-    ```
+## Usage Example
 
-*   `CLICKIFY_RATE_LIMIT`: The rate limit for downloads. Defaults to `'5/m'` (5 downloads per minute).
+Here is a complete example of how to track a download for a file hosted on an external service like Amazon S3.
 
-    ```python
-    # settings.py
-    CLICKIFY_RATE_LIMIT = '10/h' # 10 downloads per hour
-    ```
+### Step 1: Create a Download Target
 
-*   `CLICKIFY_IP_ALLOWLIST`: A list of IP addresses that are always allowed, bypassing the blocklist.
+In your Django Admin, go to the "Clickify" section and create a new "Download Target".
 
-    ```python
-    # settings.py
-    CLICKIFY_IP_ALLOWLIST = ['127.0.0.1', '192.168.1.1']
-    ```
+*   **Name:** `Monthly Report PDF`
+*   **Slug:** `monthly-report-pdf` (this will be auto-populated from the name)
+*   **Target Url:** `https://your-s3-bucket.s3.amazonaws.com/reports/monthly-summary.pdf`
 
-*   `CLICKIFY_IP_BLOCKLIST`: A list of IP addresses that are always blocked.
+### Step 2: Include Clickify URLs
 
-    ```python
-    # settings.py
-    CLICKIFY_IP_BLOCKLIST = ['10.0.0.1']
-    ```
-
-## Usage
-
-To track downloads, include the `clickify` URL patterns in your project's `urls.py`.
-
-You will also need to have configured your project to serve media files (i.e., have `MEDIA_URL` and `MEDIA_ROOT` set).
+In your project's `urls.py`, include the `clickify` URL patterns.
 
 ```python
 # your_project/urls.py
-
 from django.urls import path, include
 
 urlpatterns = [
-    # ...
-    path('downloads/', include('clickify.urls')),
+    # ... your other urls
+    path('downloads/', include('clickify.urls', namespace='clickify')),
 ]
 ```
 
-Now, any request to `/downloads/path/to/your/file.txt` will be logged, and the file will be served to the user. The `file_path` should be relative to your `MEDIA_ROOT`.
+### Step 3: Create the Download Link
 
-## Testing
+In your Django template, use the `track_url` template tag to generate the tracking link. Use the slug of the `DownloadTarget` you created in Step 1.
 
-To run the tests for this app:
+```html
+<!-- your_app/templates/my_template.html -->
+{% load clickify_tags %}
 
-```bash
-poetry install
-poetry run pytest
+<a href="{% track_url 'monthly-report-pdf' %}">
+  Download Monthly Summary
+</a>
 ```
+
+### How It Works
+
+1.  The `track_url` tag generates a URL like `/downloads/monthly-report-pdf/`.
+2.  When a user clicks this link, the request is sent to the `track_download` view.
+3.  The view records the download event in the database, associating it with the "Monthly Report PDF" target.
+4.  The view then issues a redirect to the `target_url` you defined, and the user's browser downloads the file from your S3 bucket.
+
+This approach is powerful because if you ever need to change the file's location, you only need to update the `Target Url` in the Django Admin. All your download links will continue to work and track correctly.
