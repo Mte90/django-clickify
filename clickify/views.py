@@ -1,47 +1,35 @@
-from .utils import get_geolocation
-from ipware import get_client_ip
-from django.http import FileResponse, Http404
+from django.http import HttpResponseRedirect, Http404
+from django.shortcuts import get_object_or_404
 from django.conf import settings
-from .models import DownloadClick
 from django_ratelimit.decorators import ratelimit
-import os
+from ipware import get_client_ip
+from .models import DownloadTarget, DownloadClick
+from .utils import get_geolocation
 
-rate = getattr(settings, 'CLICKIFY_RATE_LIMIT', '5/m')
 
+def track_download(request, slug):
+    """track download
 
-@ratelimit(key='ip', rate=rate, block=True)
-def track_download(request, file_path):
-    ip, is_routable = get_client_ip(request)
-    user_agent = request.META.get("HTTP_USER_AGENT", "")
+    Track download click for a DownloadTarget and then redirects its actual file URL
+    """
 
-    # GeoIP
-    country, city = get_geolocation(ip)
+    target = get_object_or_404(DownloadTarget, slug=slug)
+    rate = getattr(settings, 'CLICKIFY_RATE_LIMIT', '5/m')
 
-    # Saveto DB
-    DownloadClick.objects.create(
-        file_name=os.path.basename(file_path),
-        ip_address=ip,
-        user_agent=user_agent,
-        country=country,
-        city=city
-    )
+    @ratelimit(key='ip', rate=rate, block=True)
+    def inner(request):
+        ip, is_routable = get_client_ip(request)
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
 
-    # Serve the file
-    # Securely build the absolute path to prevent path traversal vulnerability
-    absolute_path = os.path.abspath(
-        os.path.join(settings.MEDIA_ROOT, file_path))
-    media_root_abs = os.path.abspath(settings.MEDIA_ROOT)
+        country, city = get_geolocation(ip)
 
-    # Check for path traversal
-    if not absolute_path.startswith(media_root_abs):
-        raise Http404("File not found")
+        DownloadClick.objects.create(
+            target=target,
+            ip_address=ip,
+            user_agent=user_agent,
+            country=country,
+            city=city
+        )
 
-    if not os.path.exists(absolute_path):
-        raise Http404("File not found")
-
-    try:
-        fh = open(absolute_path, 'rb')
-        response = FileResponse(fh, as_attachment=True)
-        return response
-    except FileNotFoundError:
-        raise Http404("File not found")
+        return HttpResponseRedirect(target.target_url)
+    return inner(request)

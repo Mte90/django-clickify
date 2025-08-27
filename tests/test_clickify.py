@@ -6,7 +6,7 @@ from clickify.middleware import IPFilterMiddleware
 from django.conf import settings
 from django.http import Http404
 from clickify.views import track_download
-from clickify.models import DownloadClick
+from clickify.models import DownloadClick, DownloadTarget
 from unittest.mock import patch
 from django_ratelimit.exceptions import Ratelimited
 from django.urls import reverse
@@ -49,38 +49,43 @@ class IPFilterMiddlewareTest(TestCase):
 class TrackDownloadViewTest(TestCase):
     def setUp(self):
         cache.clear()
-        self.factory = RequestFactory()
-        # Create a dummy file for testing
-        self.file_path = os.path.join(settings.MEDIA_ROOT, 'test_file.txt')
+        self.target = DownloadTarget.objects.create(
+            name="Test File",
+            slug='test-file',
+            target_url="https://example.com/test-file.zip"
+        )
 
-        # Ensures media root exists
-        os.makedirs(settings.MEDIA_ROOT, exist_ok=True)
+    def test_download_creates_click_and_redirects(self, mock_get_geolocation):
+        self.assertEqual(self.target.clicks.count(), 0)
 
-        with open(self.file_path, 'w') as f:
-            f.write('test content')
-
-    def tearDown(self):
-        # Clean up the dummy file
-        if os.path.exists(self.file_path):
-            os.remove(self.file_path)
-
-    def test_download_creates_click(self, mock_get_geolocation):
-        self.assertEqual(DownloadClick.objects.count(), 0)
-
-        url = reverse('track_download', kwargs={'file_path': 'test_file.txt'})
-
+        url = reverse('track_download', kwargs={'slug': self.target.slug})
         response = self.client.get(url)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(DownloadClick.objects.count(), 1)
-        click = DownloadClick.objects.first()
-        self.assertEqual(click.file_name, 'test_file.txt')
+        # Check for successfull redirects
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.target.target_url)
+
+        # Check that the clicks was recorded and associated with the correct target
+        self.assertEqual(self.target.clicks.count(), 1)
+        click = self.target.clicks.first()
+        # Check the mock data is saved or not
+        self.assertEqual(click.country, 'Test Country')
 
     def test_download_nonexistent_file(self, mock_get_geolocation):
         url = reverse('track_download', kwargs={
-                      'file_path': 'nonexistent.txt'})
+                      'slug': 'nonexistent-slug'})
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
 
-    
+    @override_settings(CLICKIFY_RATE_LIMIT='1/m',)
+    def test_rate_limit_exceeded(self, mock_get_geolocation):
+        url = reverse('track_download', kwargs={'slug': self.target.slug})
+
+        # First request should succeed
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+
+        # Second request should blocked with 403 status code
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 403)

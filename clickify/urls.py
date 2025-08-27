@@ -4,5 +4,5 @@ from .views import track_download
 app_name = 'clickify'
 
 urlpatterns = [
-    path('<path:file_path>', track_download, name='track_download'),
+    path('<slug:slug>', track_download, name='track_download'),
 ]
