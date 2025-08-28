@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "django-clickify"
-version = "0.1.0"
-description = "A Django app to track file downloads with rate limiting, IP filtering, and geolocation."
+version = "0.1.1"
+description = "A Django app to track link clicks with rate limiting, IP filtering, and geolocation."
 authors = ["Romjan Ali <romjanvr5@gmail.com>"]
 license = "MIT"
 readme = "README.md"

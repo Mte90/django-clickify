@@ -129,7 +129,7 @@ In your Django template, use the `track_url` template tag to generate the tracki
 {% load clickify_tags %}
 
 <a href="{% track_url 'monthly-report-pdf' %}">
-  Download Monthly Summary
+  Get Monthly Summary
 </a>
 ```
 
