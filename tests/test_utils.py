@@ -1,12 +1,13 @@
 from django.test import TestCase
 from unittest.mock import patch, Mock
-from clickify.models import DownloadTarget, DownloadClick
-from clickify.utils import create_download_click
+from clickify.models import TrackedLink, ClickLog
+from clickify.utils import create_click_log
 
-class CreateDownloadClickTest(TestCase):
+
+class CreateClickLogTest(TestCase):
 
     def setUp(self):
-        self.target = DownloadTarget.objects.create(
+        self.target = TrackedLink.objects.create(
             name="Test Target",
             slug="test-target",
             target_url="https://example.com"
@@ -22,18 +23,18 @@ class CreateDownloadClickTest(TestCase):
         If the IP is routable, geolocation should be fetched and saved.
         """
         # Configure mocks
-        mock_get_client_ip.return_value = ('8.8.8.8', True) # Routable IP
+        mock_get_client_ip.return_value = ('8.8.8.8', True)  # Routable IP
         mock_get_geolocation.return_value = ('Test Country', 'Test City')
 
         # Call the function
-        create_download_click(self.target, self.mock_request)
+        create_click_log(self.target, self.mock_request)
 
         # Assertions
-        self.assertEqual(DownloadClick.objects.count(), 1)
+        self.assertEqual(ClickLog.objects.count(), 1)
         mock_get_client_ip.assert_called_once_with(self.mock_request)
         mock_get_geolocation.assert_called_once_with('8.8.8.8')
 
-        click = DownloadClick.objects.first()
+        click = ClickLog.objects.first()
         self.assertEqual(click.ip_address, '8.8.8.8')
         self.assertEqual(click.country, 'Test Country')
         self.assertEqual(click.city, 'Test City')
@@ -46,17 +47,18 @@ class CreateDownloadClickTest(TestCase):
         If the IP is not routable, geolocation should be skipped.
         """
         # Configure mocks
-        mock_get_client_ip.return_value = ('127.0.0.1', False) # Non-routable IP
+        mock_get_client_ip.return_value = (
+            '127.0.0.1', False)  # Non-routable IP
 
         # Call the function
-        create_download_click(self.target, self.mock_request)
+        create_click_log(self.target, self.mock_request)
 
         # Assertions
-        self.assertEqual(DownloadClick.objects.count(), 1)
+        self.assertEqual(ClickLog.objects.count(), 1)
         mock_get_client_ip.assert_called_once_with(self.mock_request)
-        mock_get_geolocation.assert_not_called() # Ensure this was skipped
+        mock_get_geolocation.assert_not_called()  # Ensure this was skipped
 
-        click = DownloadClick.objects.first()
+        click = ClickLog.objects.first()
         self.assertEqual(click.ip_address, '127.0.0.1')
         self.assertIsNone(click.country)
         self.assertIsNone(click.city)

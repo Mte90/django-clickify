@@ -1,8 +1,8 @@
 from django.urls import path
-from .drf_views import TrackDownloadAPIView
+from .drf_views import TrackClickAPIView
 
 app_name = "clickify-drf"
 
 urlpatterns = [
-    path('<slug:slug>/', TrackDownloadAPIView.as_view(), name='track_download_api'),
+    path('<slug:slug>/', TrackClickAPIView.as_view(), name='track_click_api'),
 ]

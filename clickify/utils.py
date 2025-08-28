@@ -1,6 +1,6 @@
 import requests
 from django.conf import settings
-from .models import DownloadClick
+from .models import ClickLog
 from ipware import get_client_ip
 
 
@@ -33,10 +33,10 @@ def get_geolocation(ip_address):
         return None, None
 
 
-def create_download_click(target, request):
+def create_click_log(target, request):
     """
-    Helper function to create a DownloadClick object
-    This contatains the core tracking logic that can be reused by both the standard view and the DRF API view
+    Helper function to create a ClickLog object.
+   This contains the core tracking logic that can be reused by both the standard view and the DRF API view.
     """
 
     ip, is_routable = get_client_ip(request)
@@ -46,7 +46,7 @@ def create_download_click(target, request):
     if is_routable:
         country, city = get_geolocation(ip)
 
-    DownloadClick.objects.create(
+    ClickLog.objects.create(
         target=target,
         ip_address=ip,
         user_agent=user_agent,

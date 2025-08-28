@@ -5,9 +5,9 @@ from django.shortcuts import get_object_or_404
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 from django.conf import settings
-from .models import DownloadTarget
-from .views import track_download
-from .utils import create_download_click
+from .models import TrackedLink
+from .views import track_click
+from .utils import create_click_log
 
 
 @method_decorator(
@@ -18,25 +18,25 @@ from .utils import create_download_click
     ),
     name='post'
 )
-class TrackDownloadAPIView(APIView):
-    """ An API View to track a download for a DownloadTarget """
+class TrackClickAPIView(APIView):
+    """ An API View to track a click for a TrackedLink. """
 
     def post(self, request, slug, format=None):
-        """ Tracks a download for the given slug """
-        target = get_object_or_404(DownloadTarget, slug=slug)
+        """ Tracks a click for the given slug. """
+        target = get_object_or_404(TrackedLink, slug=slug)
 
         # Use the helper function with the underlying Django request
-        create_download_click(target=target, request=request._request)
+        create_click_log(target=target, request=request._request)
 
         return Response(
-            {"message": "Download tracked successfully",
+            {"message": "Click tracked successfully",
                 "target_url": target.target_url},
             status=status.HTTP_200_OK
         )
 
     def throttled(self, request, wait):
         """ 
-        Custom handler for when a request is rat-limited 
+        Custom handler for when a request is rate-limited 
         Note: This is for DRF's own throttling, not django-ratelimit.
         """
 
