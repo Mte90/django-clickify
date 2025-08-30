@@ -1,22 +1,39 @@
-from django.http import HttpResponseRedirect, HttpResponseForbidden
-from django.shortcuts import get_object_or_404
 from django.conf import settings
-from django_ratelimit.exceptions import Ratelimited
+from django.contrib import messages
+from django.http import HttpResponseRedirect
+from django.shortcuts import get_object_or_404
 from django_ratelimit.decorators import ratelimit
+from django_ratelimit.exceptions import Ratelimited
+
 from .models import TrackedLink
 from .utils import create_click_log
 
 
-@ratelimit(key='ip', rate=lambda r, g: getattr(settings, 'CLICKIFY_RATE_LIMIT', '5/m'), block=True)
+@ratelimit(
+    key="ip",
+    rate=lambda r, g: getattr(settings, "CLICKIFY_RATE_LIMIT", "5/m"),
+    block=True,
+)
 def track_click(request, slug):
-    """
-    Tracks a click for a TrackedLink and then redirects to its actual URL.
-    """
+    """Track a click for a TrackedLink and then redirect to its actual URL.
 
+    On rate limit, it adds a Django message and redirects to the referrer.
+    """
     try:
         target = get_object_or_404(TrackedLink, slug=slug)
-        # Call the helper function to do the actual tracking
         create_click_log(target=target, request=request)
         return HttpResponseRedirect(target.target_url)
     except Ratelimited:
-        return HttpResponseForbidden("Rate limit exceeded. Please try again later.")
+        # Get the custome message from settings, with a sensible default
+        message = getattr(
+            settings,
+            "CLICKIFY_RATELIMIT_MESSAGE",
+            "You have made too many requests. Please try again later",
+        )
+
+        messages.error(request, message)
+
+        # Redirect back to the page the user came from, or to the homepage as a fallback
+        redirect_url = request.META.get("HTTP_REFERER", "/")
+
+        return HttpResponseRedirect(redirect_url)

@@ -1,6 +1,7 @@
+from django.template import Context, Template
 from django.test import TestCase
-from django.template import Template, Context
 from django.urls import reverse
+
 from clickify.models import TrackedLink
 
 
@@ -9,7 +10,7 @@ class ClickifyTemplateTagTest(TestCase):
         self.target = TrackedLink.objects.create(
             name="Test File",
             slug="test-file",
-            target_url="https://example.com/test-file.zip"
+            target_url="https://example.com/test-file.zip",
         )
 
     def test_track_url_tag(self):
@@ -26,8 +27,7 @@ class ClickifyTemplateTagTest(TestCase):
         rendered = t.render(Context({}))
 
         # The expected URL
-        expected_url = reverse('clickify:track_click',
-                               kwargs={'slug': 'test-file'})
+        expected_url = reverse("clickify:track_click", kwargs={"slug": "test-file"})
 
         # Check that the rendered output is the correct url
         self.assertEqual(rendered.strip(), expected_url)
