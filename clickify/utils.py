@@ -1,17 +1,17 @@
 import requests
 from django.conf import settings
-from .models import ClickLog
 from ipware import get_client_ip
+
+from .models import ClickLog
 
 
 def get_geolocation(ip_address):
-    """
-    Get the geolocation for a given IP address using the ip-api.com service.
+    """Get the geolocation for a given IP address using the ip-api.com service.
+
     This function should only be called for public, routable IP addresses.
     """
-
     # Geolocation can be disabled globally in settings
-    if not getattr(settings, 'CLICKIFY_GEOLOCATION', True):
+    if not getattr(settings, "CLICKIFY_GEOLOCATION", True):
         return None, None
 
     if not ip_address:
@@ -24,8 +24,8 @@ def get_geolocation(ip_address):
         response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
         data = response.json()
 
-        if data.get('status') == 'success':
-            return data.get('country'), data.get('city')
+        if data.get("status") == "success":
+            return data.get("country"), data.get("city")
         else:
             return None, None
     except (requests.RequestException, ValueError):
@@ -34,11 +34,11 @@ def get_geolocation(ip_address):
 
 
 def create_click_log(target, request):
-    """
-    Helper function to create a ClickLog object.
-   This contains the core tracking logic that can be reused by both the standard view and the DRF API view.
-    """
+    """Create a ClickLog object.
 
+    This contains the core tracking logic that can be reused by both the
+    standard view and the DRF API view.
+    """
     ip, is_routable = get_client_ip(request)
     user_agent = request.META.get("HTTP_USER_AGENT", "")
 
@@ -47,9 +47,5 @@ def create_click_log(target, request):
         country, city = get_geolocation(ip)
 
     ClickLog.objects.create(
-        target=target,
-        ip_address=ip,
-        user_agent=user_agent,
-        country=country,
-        city=city
+        target=target, ip_address=ip, user_agent=user_agent, country=country, city=city
     )

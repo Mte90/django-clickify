@@ -1,19 +1,18 @@
 # Django Clickify
 
-[![PyPI version](https://badge.fury.io/py/django-clickify.svg)](https://badge.fury.io/py/django-clickify)
+[![PyPI version](https://img.shields.io/pypi/v/django-clickify.svg)](https://pypi.org/project/django-clickify/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A simple Django app to track clicks on any link (e.g., affiliate links, outbound links, file downloads) with rate limiting, IP filtering, and geolocation.
 
 ## Features
 
-*   **Click Tracking**: Logs every click on a tracked link, including IP address, user agent, and timestamp.
-*   **Geolocation**: Automatically enriches click logs with the country and city of the request's IP address via a web API.
-*   **Rate Limiting**: Prevents abuse by limiting the number of clicks per IP address in a given timeframe.
-*   **IP Filtering**: Easily configure allowlists and blocklists for IP addresses.
-*   **Secure**: Protects against path traversal attacks.
-*   **Django Admin Integration**: Create and manage your tracked links directly in the Django admin.
-*   **Template Tag & DRF View**: Provides both a simple template tag for traditional Django templates and a DRF API view for headless/JavaScript applications.
+- **Click Tracking**: Logs every click on a tracked link, including IP address, user agent, and timestamp.
+- **Geolocation**: Automatically enriches click logs with the country and city of the request's IP address via a web API.
+- **Rate Limiting**: Prevents abuse by limiting the number of clicks per IP address in a given timeframe.
+- **IP Filtering**: Easily configure allowlists and blocklists for IP addresses.
+- **Django Admin Integration**: Create and manage your tracked links directly in the Django admin.
+- **Flexible Usage**: Provides both a simple template tag for traditional Django templates and a DRF API view for headless/JavaScript applications.
 
 ## Installation
 
@@ -41,8 +40,9 @@ A simple Django app to track clicks on any link (e.g., affiliate links, outbound
 4.  **For API support (Optional)**: If you plan to use the DRF view, you must also install `djangorestframework` and add it to your `INSTALLED_APPS`.
 
     ```bash
-    pip install django-clickify[drf]
+    pip install djangorestframework
     ```
+
     ```python
     INSTALLED_APPS = [
         # ...
@@ -53,7 +53,17 @@ A simple Django app to track clicks on any link (e.g., affiliate links, outbound
 
 ## Configuration
 
-### 1. Middleware (for IP Filtering)
+You can customize the behavior of `django-clickify` by adding the following settings to your project's `settings.py` file.
+
+### General Settings
+
+- `CLICKIFY_GEOLOCATION`: A boolean to enable or disable geolocation. Defaults to `True`.
+- `CLICKIFY_RATE_LIMIT`: The rate limit for clicks. Defaults to `'5/m'`.
+- `CLICKIFY_IP_ALLOWLIST`: A list of IP addresses that are always allowed. Defaults to `[]`.
+- `CLICKIFY_IP_BLOCKLIST`: A list of IP addresses that are always blocked. Defaults to `[]`.
+- `CLICKIFY_RATELIMIT_MESSAGE`: Customize the message displayed when the rate limit is exceeded. This is used for both template-based views (via the Django messages framework) and the DRF API. Defaults to `"You have made too many requests. Please try again later"`.
+
+### Middleware (for IP Filtering)
 
 To enable the IP allowlist and blocklist feature, add the `IPFilterMiddleware` to your `settings.py`.
 
@@ -65,50 +75,23 @@ MIDDLEWARE = [
 ]
 ```
 
-### 2. Settings (Optional)
-
-You can customize the behavior of `django-clickify` by adding the following settings to your `settings.py`:
-
-*   `CLICKIFY_GEOLOCATION`: A boolean to enable or disable geolocation. Defaults to `True`.
-*   `CLICKIFY_RATE_LIMIT`: The rate limit for clicks. Defaults to `'5/m'`.
-*   `CLICKIFY_IP_ALLOWLIST`: A list of IP addresses that are always allowed. Defaults to `[]`.
-*   `CLICKIFY_IP_BLOCKLIST`: A list of IP addresses that are always blocked. Defaults to `[]`.
-
-## Testing
-
-To run the tests for this project, you'll need to have `pytest` and `pytest-django` installed. You can install them with:
-
-```bash
-pip install pytest pytest-django
-```
-
-Then, you can run the tests from the root of the project with:
-
-```bash
-poetry run pytest
-```
-
-This will run all the tests in the `tests/` directory.
-
 ## Usage
+
+First, create a `TrackedLink` in your Django Admin under the "Clickify" section. This target can be any URL you want to track.
+
+- **Name:** `Monthly Report PDF`
+- **Slug:** `monthly-report-pdf` (this will be auto-populated from the name)
+- **Target Url:** `https://your-s3-bucket.s3.amazonaws.com/reports/monthly-summary.pdf`
+
+Once a `TrackedLink` is created, you can use it in one of two ways.
 
 ### Option 1: Template-Based Usage
 
 This is the standard way to use the app in traditional Django projects.
 
-#### Step 1: Create a Tracked Link
+#### Step 1: Include Clickify URLs
 
-In your Django Admin, go to the "Clickify" section and create a new "Tracked Link". This target can be any URL you want to track clicks on.
-
-The `Target Url` can point to any type of file (e.g., PDF, ZIP, MP3, MP4, TXT) or any webpage. The link can be hosted anywhere, such as Amazon S3, a personal blog, or an affiliate partner's site.
-
-*   **Name:** `Monthly Report PDF`
-*   **Slug:** `monthly-report-pdf` (this will be auto-populated from the name)
-*   **Target Url:** `https://your-s3-bucket.s3.amazonaws.com/reports/monthly-summary.pdf`
-
-#### Step 2: Include Clickify URLs
-
-In your project's `urls.py`, include the `clickify` URL patterns.
+In your project's `urls.py`, include the `clickify` URL patterns. You can choose any path you like for the tracking URLs.
 
 ```python
 # your_project/urls.py
@@ -120,30 +103,38 @@ urlpatterns = [
 ]
 ```
 
-#### Step 3: Create the Tracked Link
+#### Step 2: Use the Template Tag
 
-In your Django template, use the `track_url` template tag to generate the tracking link. Use the slug of the `TrackedLink` you created in Step 1.
+In your Django template, use the `track_url` template tag to generate the tracking link.
 
 ```html
 <!-- your_app/templates/my_template.html -->
 {% load clickify_tags %}
 
-<a href="{% track_url 'monthly-report-pdf' %}">
-  Get Monthly Summary
-</a>
+<a href="{% track_url 'monthly-report-pdf' %}"> Get Monthly Summary </a>
+```
+
+When a user exceeds the rate limit, `django-clickify` uses the [Django messages framework](https://docs.djangoproject.com/en/stable/ref/contrib/messages/) to display an error. The user is then redirected back to the page they came from.
+
+To display the message in your templates, make sure you have configured the messages framework and included code to render the messages, like this:
+
+```html
+{% if messages %}
+<ul class="messages">
+  {% for message in messages %}
+  <li class="{{ message.tags }}">{{ message }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
 ```
 
 ### Option 2: API Usage (for Headless/JS Frameworks)
 
-If you are using a JavaScript frontend (like React, Vue, etc.) or need a programmatic way to get a tracked URL, you can use the DRF API endpoint.
+If you are using a JavaScript frontend (like React, Vue, etc.) or need a programmatic way to track a click, you can use the DRF API endpoint.
 
-#### Step 1: Create a Tracked Link
+#### Step 1: Include Clickify DRF URLs
 
-Follow Step 1 from the template-based usage above.
-
-#### Step 2: Include Clickify DRF URLs
-
-In your project's `urls.py`, include the `clickify.drf_urls` patterns.
+In your project's `urls.py`, include the `clickify.drf_urls` patterns. You can choose any path you like for the API endpoint.
 
 ```python
 # your_project/urls.py
@@ -155,75 +146,89 @@ urlpatterns = [
 ]
 ```
 
-#### Step 3: Make the API Request
+#### Step 2: Make the API Request
 
 From your frontend, make a `POST` request to the API endpoint using the slug of your `TrackedLink`.
 
 **Endpoint**: `POST /api/track/<slug>/`
 
-A successful request will track the click and return the actual file URL, which you can then use to trigger the click or redirection on the client-side.
-
 **Example using JavaScript `fetch`:**
 
 ```javascript
-fetch('/api/track/monthly-report-pdf/', {
-    method: 'POST',
-    headers: {
-        // Include CSRF token if necessary for your setup
-        'X-CSRFToken': 'YourCsrfTokenHere' 
-    }
+fetch("/api/track/monthly-report-pdf/", {
+  method: "POST",
+  headers: {
+    // Include CSRF token if necessary for your setup
+    "X-CSRFToken": "YourCsrfTokenHere",
+  },
 })
-.then(response => response.json())
-.then(data => {
+  .then((response) => response.json())
+  .then((data) => {
     if (data.target_url) {
-        console.log("Click tracked. Redirecting to:", data.target_url);
-        // Redirect the user to the URL
-        window.location.href = data.target_url;
+      console.log("Click tracked. Redirecting to:", data.target_url);
+      // Redirect the user to the URL
+      window.location.href = data.target_url;
     } else {
-        console.error("Failed to track click:", data);
+      console.error("Failed to track click:", data);
     }
-})
-.catch(error => {
-    console.error('Error:', error);
-});
+  })
+  .catch((error) => {
+    console.error("Error:", error);
+  });
 ```
 
 **Successful Response (`200 OK`):**
+
 ```json
 {
-    "message": "Click tracked successfully",
-    "target_url": "https://your-s3-bucket.s3.amazonaws.com/reports/monthly-summary.pdf"
+  "message": "Click tracked successfully",
+  "target_url": "https://your-s3-bucket.s3.amazonaws.com/reports/monthly-summary.pdf"
 }
 ```
 
-**Failure Responses**
+#### API-Specific Configuration
 
-If the request fails, you might receive one of the following error responses:
+- **`CLICKIFY_PERMISSION_CLASSES`**: Control who can access the tracking API endpoint. This should be a list of DRF permission classes. Defaults to `[AllowAny]`.
 
-*   **404 Not Found:**
+  ```python
+  # settings.py
+  CLICKIFY_PERMISSION_CLASSES = ["rest_framework.permissions.IsAuthenticated"]
+  ```
 
-    ```json
-    {
-        "detail": "Not found."
+- **Improving API Error Responses**: To provide clearer, more consistent error messages for the API (e.g., for rate limiting or authentication errors), you can use the custom exception handling logic included with `django-clickify`.
+
+  - **If you DO NOT have a custom exception handler:**
+    In your `settings.py`, you can use the handler provided by `django-clickify` directly:
+
+    ```python
+    # settings.py
+    REST_FRAMEWORK = {
+        'EXCEPTION_HANDLER': 'clickify.drf_exception_handler.custom_exception_handler'
     }
     ```
 
-*   **429 Too Many Requests:**
+  - **If you ALREADY have a custom exception handler:**
+    You can easily integrate `django-clickify`'s logic into your existing handler.
 
-    ```json
-    {
-        "error": "Rate limit exceeded. Please try again later"
-    }
+    ```python
+    # your_project/your_app/exception_handler.py
+    from rest_framework.views import exception_handler
+    from clickify.drf_exception_handler import handle_clickify_exceptions # <-- Import
+
+    def your_custom_handler(exc, context):
+        # First, check for clickify-specific exceptions
+        response = handle_clickify_exceptions(exc)
+        if response is not None:
+            return response
+
+        # Continue with your existing custom error handling logic
+        # ...
+
+        # Fall back to the default DRF handler
+        return exception_handler(exc, context)
     ```
 
-*   **403 Forbidden:** (If IP filtering is enabled and the IP is blocked)
-
-    This will typically return a plain text response like:
-    ```
-    IP address blocked.
-    ```
-
-### How It Works
+## How It Works
 
 1.  A user clicks a tracked link (`/track/monthly-report-pdf/`) or a `POST` request is sent to the API.
 2.  The view or API view records the click event in the database, associating it with the correct `TrackedLink`.
@@ -231,13 +236,3 @@ If the request fails, you might receive one of the following error responses:
 4.  The user's browser is redirected to the final destination.
 
 This approach is powerful because if you ever need to change the link's destination, you only need to update the `Target Url` in the Django Admin. All your tracked links and API calls will continue to work correctly.
-
-## Contributing
-
-Contributions are welcome! If you'd like to contribute to this project, please follow these steps:
-
-1.  Fork the repository.
-2.  Create a new branch for your feature or bug fix.
-3.  Make your changes and add tests for them.
-4.  Ensure the tests pass by running `poetry run pytest`.
-5.  Create a pull request with a clear description of your changes.
