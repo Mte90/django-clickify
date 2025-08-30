@@ -38,5 +38,8 @@ test: ## Run the test suite
 
 # Install pre-commit hooks
 precommit: ## Install pre-commit hooks
+	@echo "Installing pre-commit if not already installed..."
+	@poetry add --group dev pre-commit || true
+	@echo "Installing Git hooks..."
 	@poetry run pre-commit install
 	@echo "Pre-commit hooks installed!"
