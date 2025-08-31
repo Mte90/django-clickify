@@ -37,7 +37,7 @@ A simple Django app to track clicks on any link (e.g., affiliate links, outbound
     python manage.py migrate
     ```
 
-4.  **For API support (Optional)**: If you plan to use the DRF view, you must also install `djangorestframework` and add it to your `INSTALLED_APPS`.
+4.  **For API support (Optional)**: If you plan to use the DRF view, you can either install with the `[drf]` or `[full]` extra (see step 5) or manually install `djangorestframework` and add it to your `INSTALLED_APPS`.
 
     ```bash
     pip install djangorestframework
@@ -50,6 +50,21 @@ A simple Django app to track clicks on any link (e.g., affiliate links, outbound
         'clickify',
     ]
     ```
+
+5.  **Optional Dependencies**: This package supports optional features that require additional dependencies:
+
+    ```bash
+    # For rate limiting support only
+    pip install django-clickify[ratelimit]
+
+    # For DRF API support only
+    pip install django-clickify[drf]
+
+    # For all optional features
+    pip install django-clickify[full]
+    ```
+
+    Alternatively, you can install the base package and add dependencies manually as described in the sections above.
 
 ## Configuration
 
@@ -92,7 +107,7 @@ CLICKIFY_RATE_LIMIT = '10/h'  # 10 requests per hour
 CLICKIFY_RATELIMIT_MESSAGE = "Too many clicks! Please wait before trying again."
 ```
 
-**Note**: When rate limiting is enabled, you must install `django-ratelimit`:
+**Note**: When rate limiting is enabled, you can either install with the `[ratelimit]` or `[full]` extra, or manually install `django-ratelimit`:
 
 ```bash
 pip install django-ratelimit
