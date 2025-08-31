@@ -1,36 +1,98 @@
-import requests
+import ipaddress
+import json
+from urllib.error import ContentTooShortError, HTTPError, URLError
+from urllib.request import Request, urlopen
+
 from django.conf import settings
-from ipware import get_client_ip
 
 from .models import ClickLog
 
+# ------------------- IP & Rate Limit -------------------
+
+
+def get_client_ip(request):
+    """Get the client IP address from the request, considering common proxy headers.
+
+    Returns:
+        (ip: str, is_routable: bool)
+
+    """
+    # Headers to check in order of preference
+    ip_headers = getattr(
+        settings,
+        "CLICKIFY_IP_HEADERS",
+        [
+            "HTTP_X_FORWARDED_FOR",
+            "HTTP_X_REAL_IP",
+            "HTTP_X_FORWARDED",
+            "HTTP_X_CLUSTER_CLIENT_IP",
+            "HTTP_FORWARDED_FOR",
+            "HTTP_FORWARDED",
+            "REMOTE_ADDR",
+        ],
+    )
+
+    def is_routable_ip(ip):
+        """Check if an IP is public/routable."""
+        try:
+            ip_obj = ipaddress.ip_address(ip)
+            # Returns True if public, False if private, loopback, link-local, reserved, unspecified
+            return not (
+                ip_obj.is_private
+                or ip_obj.is_loopback
+                or ip_obj.is_link_local
+                or ip_obj.is_reserved
+                or ip_obj.is_unspecified
+            )
+        except ValueError:
+            return False  # Invalid IP
+
+    for header in ip_headers:
+        ip_list = request.META.get(header, "")
+        if ip_list:
+            # Some headers can contain multiple IPs (comma separated)
+            for ip in [ip.strip() for ip in ip_list.split(",")]:
+                if ip and ip.lower() != "unknown":
+                    return ip, is_routable_ip(ip)
+
+    # Fallback
+    ip = request.META.get("REMOTE_ADDR", "")
+    return ip, is_routable_ip(ip) if ip else False
+
+
+def get_ratelimit_ip(group, request):
+    """Custom key for django-ratelimit using IP logic"""
+    ip, _ = get_client_ip(request)
+    return ip or "anonymous"
+
+
+# ------------------- GeoIP -------------------
+
+
+def get_geoip(ip):
+    """Fetch geolocation data for the IP from ip-api.com"""
+    url = f"http://ip-api.com/json/{ip}?fields=status,country,city"
+    try:
+        req = Request(url, headers={"User-Agent": "clickify/1.0"})
+        with urlopen(req, timeout=2) as response:
+            return json.load(response)
+    except (URLError, HTTPError, ContentTooShortError, json.JSONDecodeError):
+        return {}
+
 
 def get_geolocation(ip_address):
-    """Get the geolocation for a given IP address using the ip-api.com service.
-
-    This function should only be called for public, routable IP addresses.
-    """
+    """Get country and city for a given IP address"""
     # Geolocation can be disabled globally in settings
-    if not getattr(settings, "CLICKIFY_GEOLOCATION", True):
+    if not getattr(settings, "CLICKIFY_GEOLOCATION", True) or not ip_address:
         return None, None
 
-    if not ip_address:
-        return None, None
+    data = get_geoip(ip_address)
+    if data.get("status") == "success":
+        return data.get("country"), data.get("city")
+    return None, None
 
-    try:
-        # The API endpoint. We request only the fields we need
-        url = f"http://ip-api.com/json/{ip_address}?fields=status,country,city"
-        response = requests.get(url, timeout=2)
-        response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
-        data = response.json()
 
-        if data.get("status") == "success":
-            return data.get("country"), data.get("city")
-        else:
-            return None, None
-    except (requests.RequestException, ValueError):
-        # Catch network errors, timeouts, or JSON decoding errors
-        return None, None
+# ------------------- Click Log -------------------
 
 
 def create_click_log(target, request):

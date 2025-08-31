@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.contrib import messages
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -54,6 +55,7 @@ class TrackClickViewTest(TestCase):
 
     @override_settings(
         CLICKIFY_RATE_LIMIT="1/m",
+        CLICKIFY_ENABLE_RATELIMIT=True,
     )
     def test_rate_limit_exceeded(self, mock_get_geolocation, mock_get_client_ip):
         url = reverse("clickify:track_click", kwargs={"slug": self.target.slug})
@@ -62,6 +64,25 @@ class TrackClickViewTest(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 302)
 
-        # Second request should blocked with 403 status code
+        # Second request should be blocked and redirect back
+        response = self.client.get(url, HTTP_REFERER="/")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
+
+        # Check for the error message
+        messages_list = list(messages.get_messages(response.wsgi_request))
+        self.assertEqual(len(messages_list), 1)
+        self.assertIn("too many requests", str(messages_list[0]).lower())
+
+    @override_settings(
+        CLICKIFY_RATE_LIMIT="1/m",
+        CLICKIFY_ENABLE_RATELIMIT=False,
+    )
+    def test_rate_limit_disabled(self, mock_get_geolocation, mock_get_client_ip):
+        url = reverse("clickify:track_click", kwargs={"slug": self.target.slug})
+
+        # Both requests should succeed
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 302)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)

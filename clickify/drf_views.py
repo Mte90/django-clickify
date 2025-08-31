@@ -2,24 +2,17 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.utils.module_loading import import_string
-from django_ratelimit.decorators import ratelimit
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .decorators import conditional_ratelimit
 from .models import TrackedLink
 from .utils import create_click_log
 
 
-@method_decorator(
-    ratelimit(
-        key="ip",
-        rate=lambda r, g: getattr(settings, "CLICKIFY_RATE_LIMIT", "5/m"),
-        block=True,
-    ),
-    name="post",
-)
+@method_decorator(conditional_ratelimit, name="post")
 class TrackClickAPIView(APIView):
     """An API View to track a click for a TrackedLink."""
 

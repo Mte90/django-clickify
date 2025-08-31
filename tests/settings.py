@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
+    "django.contrib.messages",
     "rest_framework",
     "clickify",
 ]
@@ -33,7 +34,24 @@ TEMPLATES = [
     }
 ]
 
-MIDDLEWARE = ["clickify.middleware.IPFilterMiddleware"]
+REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "clickify.drf_exceptions.custom_exception_handler"
+}
+
+
+MIDDLEWARE = [
+    "clickify.middleware.IPFilterMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",  # Required!
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
+
+MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
+
 
 MEDIA_ROOT = os.path.join(tempfile.gettempdir(), "clickify_tests")
 

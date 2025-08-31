@@ -9,7 +9,7 @@ A simple Django app to track clicks on any link (e.g., affiliate links, outbound
 
 - **Click Tracking**: Logs every click on a tracked link, including IP address, user agent, and timestamp.
 - **Geolocation**: Automatically enriches click logs with the country and city of the request's IP address via a web API.
-- **Rate Limiting**: Prevents abuse by limiting the number of clicks per IP address in a given timeframe.
+- **Rate Limiting**: Prevents abuse by limiting the number of clicks per IP address in a given timeframe (can be disabled).
 - **IP Filtering**: Easily configure allowlists and blocklists for IP addresses.
 - **Django Admin Integration**: Create and manage your tracked links directly in the Django admin.
 - **Flexible Usage**: Provides both a simple template tag for traditional Django templates and a DRF API view for headless/JavaScript applications.
@@ -58,10 +58,61 @@ You can customize the behavior of `django-clickify` by adding the following sett
 ### General Settings
 
 - `CLICKIFY_GEOLOCATION`: A boolean to enable or disable geolocation. Defaults to `True`.
-- `CLICKIFY_RATE_LIMIT`: The rate limit for clicks. Defaults to `'5/m'`.
+- `CLICKIFY_ENABLE_RATELIMIT`: A boolean to enable or disable rate limiting. Defaults to `True`. Set to `False` to disable all rate limiting.
+- `CLICKIFY_RATE_LIMIT`: The rate limit for clicks when rate limiting is enabled. Defaults to `'5/m'` (5 requests per minute).
+- `CLICKIFY_RATELIMIT_MESSAGE`: Customize the message displayed when the rate limit is exceeded. This is used for both template-based views (via the Django messages framework) and the DRF API. Defaults to `"You have made too many requests. Please try again later"`.
 - `CLICKIFY_IP_ALLOWLIST`: A list of IP addresses that are always allowed. Defaults to `[]`.
 - `CLICKIFY_IP_BLOCKLIST`: A list of IP addresses that are always blocked. Defaults to `[]`.
-- `CLICKIFY_RATELIMIT_MESSAGE`: Customize the message displayed when the rate limit is exceeded. This is used for both template-based views (via the Django messages framework) and the DRF API. Defaults to `"You have made too many requests. Please try again later"`.
+- `CLICKIFY_IP_HEADERS`: A list of HTTP headers to check for the real client IP address (useful when behind proxies or load balancers). Defaults to:
+  ```python
+  [
+      "HTTP_X_FORWARDED_FOR",
+      "HTTP_X_REAL_IP",
+      "HTTP_X_FORWARDED",
+      "HTTP_X_CLUSTER_CLIENT_IP",
+      "HTTP_FORWARDED_FOR",
+      "HTTP_FORWARDED",
+      "REMOTE_ADDR",
+  ]
+  ```
+
+### Rate Limiting Configuration
+
+Rate limiting is enabled by default but can be completely disabled:
+
+```python
+# settings.py
+
+# Disable rate limiting entirely
+CLICKIFY_ENABLE_RATELIMIT = False
+
+# Or configure rate limiting (when enabled)
+CLICKIFY_ENABLE_RATELIMIT = True
+CLICKIFY_RATE_LIMIT = '10/h'  # 10 requests per hour
+CLICKIFY_RATELIMIT_MESSAGE = "Too many clicks! Please wait before trying again."
+```
+
+**Note**: When rate limiting is enabled, you must install `django-ratelimit`:
+
+```bash
+pip install django-ratelimit
+```
+
+### IP Detection Configuration
+
+For applications behind proxies or load balancers, configure the IP headers to check:
+
+```python
+# settings.py
+
+# Custom IP headers (checked in order)
+CLICKIFY_IP_HEADERS = [
+    "HTTP_CF_CONNECTING_IP",      # Cloudflare
+    "HTTP_X_FORWARDED_FOR",       # Standard proxy header
+    "HTTP_X_REAL_IP",             # Nginx
+    "REMOTE_ADDR",                # Fallback
+]
+```
 
 ### Middleware (for IP Filtering)
 
@@ -114,7 +165,7 @@ In your Django template, use the `track_url` template tag to generate the tracki
 <a href="{% track_url 'monthly-report-pdf' %}"> Get Monthly Summary </a>
 ```
 
-When a user exceeds the rate limit, `django-clickify` uses the [Django messages framework](https://docs.djangoproject.com/en/stable/ref/contrib/messages/) to display an error. The user is then redirected back to the page they came from.
+When a user exceeds the rate limit (if enabled), `django-clickify` uses the [Django messages framework](https://docs.djangoproject.com/en/stable/ref/contrib/messages/) to display an error. The user is then redirected back to the page they came from.
 
 To display the message in your templates, make sure you have configured the messages framework and included code to render the messages, like this:
 
@@ -186,6 +237,14 @@ fetch("/api/track/monthly-report-pdf/", {
 }
 ```
 
+**Rate Limited Response (`429 Too Many Requests`):**
+
+```json
+{
+  "error": "You have made too many requests. Please try again later"
+}
+```
+
 #### API-Specific Configuration
 
 - **`CLICKIFY_PERMISSION_CLASSES`**: Control who can access the tracking API endpoint. This should be a list of DRF permission classes. Defaults to `[AllowAny]`.
@@ -232,7 +291,8 @@ fetch("/api/track/monthly-report-pdf/", {
 
 1.  A user clicks a tracked link (`/track/monthly-report-pdf/`) or a `POST` request is sent to the API.
 2.  The view or API view records the click event in the database, associating it with the correct `TrackedLink`.
-3.  The standard view issues a `302 Redirect` to the `target_url`. The API view returns a JSON response containing the `target_url`.
-4.  The user's browser is redirected to the final destination.
+3.  If rate limiting is enabled and the user has exceeded the limit, they receive an error message and are redirected back (for template views) or receive a JSON error response (for API views).
+4.  For successful requests, the standard view issues a `302 Redirect` to the `target_url`. The API view returns a JSON response containing the `target_url`.
+5.  The user's browser is redirected to the final destination.
 
 This approach is powerful because if you ever need to change the link's destination, you only need to update the `Target Url` in the Django Admin. All your tracked links and API calls will continue to work correctly.

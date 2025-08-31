@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
-from ipware import get_client_ip
+
+from .utils import get_client_ip
 
 
 class IPFilterMiddleware:

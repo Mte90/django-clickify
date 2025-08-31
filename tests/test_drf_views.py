@@ -47,9 +47,12 @@ class TrackClickAPIViewTest(TestCase):
         response = self.client.post(url)
         self.assertEqual(response.status_code, 404)
 
-    @override_settings(CLICKIFY_RATE_LIMIT="1/m")
+    @override_settings(
+        CLICKIFY_RATE_LIMIT="1/m",
+        CLICKIFY_ENABLE_RATELIMIT=True,
+    )
     def test_track_click_api_rate_limit_exceeded(
-        self, mock_get_geolocation, mock_get_client_it
+        self, mock_get_geolocation, mock_get_client_ip
     ):
         url = reverse("clickify-drf:track_click_api", kwargs={"slug": self.target.slug})
 
@@ -59,4 +62,22 @@ class TrackClickAPIViewTest(TestCase):
 
         # Second request should be blocked
         response = self.client.post(url)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 429)
+        response_data = response.json()
+        self.assertIn("error", response_data)
+        self.assertIn("too many requests", response_data["error"].lower())
+
+    @override_settings(
+        CLICKIFY_RATE_LIMIT="1/m",
+        CLICKIFY_ENABLE_RATELIMIT=False,
+    )
+    def test_track_click_api_rate_limit_disabled(
+        self, mock_get_geolocation, mock_get_client_ip
+    ):
+        url = reverse("clickify-drf:track_click_api", kwargs={"slug": self.target.slug})
+
+        # Both requests should succeed
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 200)
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 200)
