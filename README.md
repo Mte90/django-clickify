@@ -151,6 +151,8 @@ First, create a `TrackedLink` in your Django Admin under the "Clickify" section.
 
 Once a `TrackedLink` is created, you can use it in one of two ways.
 
+The `ref` parameter in the URL is saved in the log, ex: `track/<slug>/?ref=[something]`.
+
 ### Option 1: Template-Based Usage
 
 This is the standard way to use the app in traditional Django projects.

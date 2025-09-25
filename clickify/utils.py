@@ -108,6 +108,7 @@ def create_click_log(target, request):
     if is_routable:
         country, city = get_geolocation(ip)
 
+    ref = request.GET.get('ref') or request.POST.get('ref')
     ClickLog.objects.create(
-        target=target, ip_address=ip, user_agent=user_agent, country=country, city=city
+        target=target, ip_address=ip, user_agent=user_agent, country=country, city=city, ref=ref
     )
